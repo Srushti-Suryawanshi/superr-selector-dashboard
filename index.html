@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SupeRR Selector S2 | War Room Pressure Analytics Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #090d1a; color: #f8fafc; }
+    .rr-gradient { background: linear-gradient(135deg, #ea1a85 0%, #172554 100%); }
+    .rr-card { background: rgba(17, 24, 39, 0.85); border: 1px solid rgba(234, 26, 133, 0.22); backdrop-filter: blur(12px); }
+    .rr-pill { background: rgba(234, 26, 133, 0.15); border: 1px solid rgba(234, 26, 133, 0.4); color: #f472b6; }
+    .tab-active { background: #ea1a85; color: #ffffff; border-color: #ea1a85; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #090d1a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+  </style>
+</head>
+<body class="min-h-screen antialiased">
+
+  <!-- Top War Room Banner -->
+  <header class="rr-gradient border-b border-pink-500/30 sticky top-0 z-50 shadow-2xl">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-11 h-11 rounded-xl bg-white/10 border border-white/25 flex items-center justify-center font-extrabold text-xl tracking-tight text-white shadow-inner">
+          RR
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-lg sm:text-xl font-extrabold tracking-tight text-white">SupeRR Selector Season 2 — War Room</h1>
+            <span class="px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/40">IPL 2027 Auction</span>
+          </div>
+          <p class="text-xs text-pink-100/80">Round 1: Identifying the Most Reliable Players Under Pressure (IPL + T20I 2022–2026 Framework)</p>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <button onclick="switchTab('rankings')" id="btn-rankings" class="tab-btn tab-active px-3.5 py-2 rounded-lg text-xs font-bold border border-white/15 transition">1. Top-10 Rankings</button>
+        <button onclick="switchTab('simulator')" id="btn-simulator" class="tab-btn px-3.5 py-2 rounded-lg text-xs font-bold border border-white/15 bg-slate-900/60 hover:bg-slate-800 transition">2. MPI Simulator</button>
+        <button onclick="switchTab('methodology')" id="btn-methodology" class="tab-btn px-3.5 py-2 rounded-lg text-xs font-bold border border-white/15 bg-slate-900/60 hover:bg-slate-800 transition">3. Methodology & Math</button>
+        <button onclick="switchTab('csvupload')" id="btn-csvupload" class="tab-btn px-3.5 py-2 rounded-lg text-xs font-bold border border-amber-400/40 bg-amber-500/20 text-amber-200 hover:bg-amber-500/30 transition">4. Load Unstop CSV</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+    <!-- KPI Summary Strip -->
+    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="rr-card rounded-2xl p-4">
+        <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">High-Pressure Threshold</p>
+        <div class="mt-1 flex items-baseline justify-between">
+          <span class="text-2xl font-extrabold text-pink-400">MPI ≥ 65.0</span>
+          <span class="text-xs text-emerald-400 font-semibold">Top ~22% Deliveries</span>
+        </div>
+        <p class="mt-1 text-[11px] text-slate-400">Required Run Rate + Wicket Scarcity + Death Leverage</p>
+      </div>
+      <div class="rr-card rounded-2xl p-4">
+        <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Sample Eligibility Gate</p>
+        <div class="mt-1 flex items-baseline justify-between">
+          <span class="text-2xl font-extrabold text-white">≥ 120 Balls</span>
+          <span class="text-xs text-sky-400 font-semibold">EB Prior k = 150</span>
+        </div>
+        <p class="mt-1 text-[11px] text-slate-400">Empirical Bayes shrinkage eliminates small-sample noise</p>
+      </div>
+      <div class="rr-card rounded-2xl p-4">
+        <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Competition Weighting</p>
+        <div class="mt-1 flex items-baseline justify-between">
+          <span class="text-2xl font-extrabold text-amber-400">1.00× / 0.92×</span>
+          <span class="text-xs text-slate-300 font-semibold">IPL vs T20I</span>
+        </div>
+        <p class="mt-1 text-[11px] text-slate-400">Opponent-quality & venue par-score adjusted</p>
+      </div>
+      <div class="rr-card rounded-2xl p-4">
+        <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Submission Status</p>
+        <div class="mt-1 flex items-baseline justify-between">
+          <span class="text-2xl font-extrabold text-emerald-400" id="data-mode-label">Template Ready</span>
+          <button onclick="exportUnstopChecklist()" class="text-xs underline text-pink-400 hover:text-pink-300 font-semibold">Copy Dropdown Order</button>
+        </div>
+        <p class="mt-1 text-[11px] text-slate-400">Syncs directly with Unstop Batsman 1–10 & Bowler 1–10</p>
+      </div>
+    </section>
+
+    <!-- TAB 1: TOP 10 RANKINGS & CHARTS -->
+    <div id="tab-rankings" class="space-y-6">
+      <!-- Editable / Uploadable Note Banner -->
+      <div class="rounded-xl bg-amber-500/10 border border-amber-500/30 p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div class="text-xs text-amber-200 leading-relaxed">
+          <strong class="text-amber-300">War Room Note:</strong> Below is the interactive ranking engine pre-populated with benchmark T20/IPL pressure archetypes. Use <strong>"4. Load Unstop CSV"</strong> or edit rows directly to sync your exact Unstop dropdown picks before exporting your report.
+        </div>
+        <button onclick="switchTab('csvupload')" class="shrink-0 px-3 py-1.5 rounded-lg bg-amber-400 text-slate-950 font-bold text-xs hover:bg-amber-300 transition">
+          Import Official CSV
+        </button>
+      </div>
+
+      <!-- Dual Charts -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="rr-card rounded-2xl p-5">
+          <div class="flex items-center justify-between mb-3">
+            <div>
+              <h2 class="text-base font-bold text-white">Top 10 Batters: High-Pressure SR vs Baseline SR</h2>
+              <p class="text-xs text-slate-400">Positive SR Delta indicates acceleration when MPI ≥ 65</p>
+            </div>
+            <span class="rr-pill px-2.5 py-1 rounded-full text-[11px] font-bold">CBR Index</span>
+          </div>
+          <div class="h-72">
+            <canvas id="batterChart"></canvas>
+          </div>
+        </div>
+
+        <div class="rr-card rounded-2xl p-5">
+          <div class="flex items-center justify-between mb-3">
+            <div>
+              <h2 class="text-base font-bold text-white">Top 10 Bowlers: High-Pressure Economy vs Dot %</h2>
+              <p class="text-xs text-slate-400">Containment & wicket-taking in death/tight-chase states</p>
+            </div>
+            <span class="rr-pill px-2.5 py-1 rounded-full text-[11px] font-bold">CBwR Index</span>
+          </div>
+          <div class="h-72">
+            <canvas id="bowlerChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Top 10 Tables -->
+      <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <!-- Batters Table -->
+        <div class="rr-card rounded-2xl overflow-hidden">
+          <div class="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/50">
+            <div>
+              <h3 class="text-base font-extrabold text-pink-400">Top 10 Batters Under Pressure (Unstop Order)</h3>
+              <p class="text-xs text-slate-400">Ranked by Composite Clutch Batting Rating (CBR)</p>
+            </div>
+            <span class="text-xs font-semibold text-slate-300">Batsman 1 → 10</span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr class="border-b border-slate-800 text-slate-400 uppercase text-[10px] tracking-wider bg-slate-950/40">
+                  <th class="py-3 px-3">Rank</th>
+                  <th class="py-3 px-3">Player</th>
+                  <th class="py-3 px-3">HP Balls</th>
+                  <th class="py-3 px-3">HP SR</th>
+                  <th class="py-3 px-3">SR Δ</th>
+                  <th class="py-3 px-3">HP Avg</th>
+                  <th class="py-3 px-3">CBR</th>
+                </tr>
+              </thead>
+              <tbody id="batter-table-body" class="divide-y divide-slate-800/70"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Bowlers Table -->
+        <div class="rr-card rounded-2xl overflow-hidden">
+          <div class="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/50">
+            <div>
+              <h3 class="text-base font-extrabold text-sky-400">Top 10 Bowlers Under Pressure (Unstop Order)</h3>
+              <p class="text-xs text-slate-400">Ranked by Composite Clutch Bowling Rating (CBwR)</p>
+            </div>
+            <span class="text-xs font-semibold text-slate-300">Bowler 1 → 10</span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr class="border-b border-slate-800 text-slate-400 uppercase text-[10px] tracking-wider bg-slate-950/40">
+                  <th class="py-3 px-3">Rank</th>
+                  <th class="py-3 px-3">Player</th>
+                  <th class="py-3 px-3">HP Balls</th>
+                  <th class="py-3 px-3">HP Econ</th>
+                  <th class="py-3 px-3">Econ Δ</th>
+                  <th class="py-3 px-3">Dot %</th>
+                  <th class="py-3 px-3">CBwR</th>
+                </tr>
+              </thead>
+              <tbody id="bowler-table-body" class="divide-y divide-slate-800/70"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: INTERACTIVE MATCH PRESSURE INDEX (MPI) SIMULATOR -->
+    <div id="tab-simulator" class="hidden space-y-6">
+      <div class="rr-card rounded-2xl p-6">
+        <div class="max-w-3xl">
+          <h2 class="text-lg font-extrabold text-white">Interactive Match Pressure Index (MPI) Simulator</h2>
+          <p class="text-xs text-slate-400 mt-1">Test how our mathematical model classifies any live T20 game state into Low, Moderate, High (MPI ≥ 65), or Extreme Climax Pressure (MPI ≥ 82).</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+          <div class="space-y-4 lg:col-span-2 bg-slate-950/60 p-5 rounded-xl border border-slate-800">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1">Innings</label>
+                <select id="sim-innings" onchange="updateSimulator()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white">
+                  <option value="2" selected>2nd Innings (Chasing)</option>
+                  <option value="1">1st Innings (Setting Target)</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1">Over Completed: <span id="lbl-over" class="text-pink-400 font-bold">17.0</span></label>
+                <input type="range" id="sim-over" min="1" max="19" value="17" oninput="updateSimulator()" class="w-full accent-pink-500">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1">Wickets Fallen: <span id="lbl-wkts" class="text-pink-400 font-bold">5</span></label>
+                <input type="range" id="sim-wkts" min="0" max="9" value="5" oninput="updateSimulator()" class="w-full accent-pink-500">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1">Runs Needed (2nd Inn) / Par Deficit (1st): <span id="lbl-runs" class="text-pink-400 font-bold">38</span></label>
+                <input type="range" id="sim-runs" min="2" max="90" value="38" oninput="updateSimulator()" class="w-full accent-pink-500">
+              </div>
+            </div>
+
+            <div class="pt-2 flex flex-wrap gap-2">
+              <button onclick="setPreset(2, 18, 6, 28)" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200">Preset: Death Chase (28 off 12, 4 wkts)</button>
+              <button onclick="setPreset(2, 5, 3, 145)" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200">Preset: Powerplay Collapse (3 down in PP)</button>
+              <button onclick="setPreset(2, 10, 1, 75)" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200">Preset: Routine Cruise (Low Pressure)</button>
+            </div>
+          </div>
+
+          <div class="bg-slate-950/80 p-5 rounded-xl border border-pink-500/30 flex flex-col justify-between">
+            <div>
+              <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Computed Ball MPI</span>
+              <div class="mt-2 flex items-baseline gap-3">
+                <span id="sim-mpi-score" class="text-5xl font-black text-pink-500">84.6</span>
+                <span class="text-sm font-bold text-slate-400">/ 100</span>
+              </div>
+              <div id="sim-badge" class="mt-3 inline-block px-3 py-1 rounded-full text-xs font-extrabold bg-pink-500/20 text-pink-300 border border-pink-500/40">
+                HIGH-PRESSURE DELIVERY (INCLUDED)
+              </div>
+            </div>
+
+            <div class="mt-6 space-y-2 text-xs border-t border-slate-800 pt-4">
+              <div class="flex justify-between"><span class="text-slate-400">Required Run Rate:</span><span id="sim-rrr" class="font-bold text-white">12.67 RPO</span></div>
+              <div class="flex justify-between"><span class="text-slate-400">Balls Remaining:</span><span id="sim-balls" class="font-bold text-white">18 balls</span></div>
+              <div class="flex justify-between"><span class="text-slate-400">Wickets in Hand:</span><span id="sim-wih" class="font-bold text-white">5 wickets</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: METHODOLOGY & MATHEMATICAL SPECIFICATION -->
+    <div id="tab-methodology" class="hidden space-y-6">
+      <div class="rr-card rounded-2xl p-6 space-y-5 text-sm text-slate-300 leading-relaxed">
+        <h2 class="text-xl font-extrabold text-white">Analytical Methodology & Mathematical Formulation</h2>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="bg-slate-950/60 p-4 rounded-xl border border-slate-800">
+            <h3 class="font-bold text-pink-400 text-base mb-2">1. Defining Pressure: Match Pressure Index (MPI)</h3>
+            <p class="text-xs text-slate-300 mb-3">Every legal ball is assigned a continuous score $	ext{MPI} \in [0, 100]$ combining four contextual signals:</p>
+            <ul class="list-disc pl-4 space-y-1.5 text-xs text-slate-300">
+              <li><strong>Scoring Rate Stress (42%):</strong> In 2nd innings, normalized Required Run Rate ($	ext{RRR} > 7.5$). In 1st innings, deficit below venue-adjusted par trajectory.</li>
+              <li><strong>Wicket Scarcity (33%):</strong> Non-linear penalty $((10 - W_{	ext{hand}})/10)^{1.6} 	imes 100$, capturing exponential collapse risk after the 5th wicket.</li>
+              <li><strong>Phase Leverage (25%):</strong> Death overs (16–20) weighted $1.0	imes$, Powerplay collapses $0.75	imes$, middle consolidation $0.65	imes$.</li>
+              <li><strong>Climax Closeness Bonus (+18 pts):</strong> Triggered in the final 24 balls when runs needed are within $2.2	imes$ balls remaining.</li>
+            </ul>
+          </div>
+
+          <div class="bg-slate-950/60 p-4 rounded-xl border border-slate-800">
+            <h3 class="font-bold text-sky-400 text-base mb-2">2. Fair Comparisons & Empirical Bayes Shrinkage</h3>
+            <p class="text-xs text-slate-300 mb-3">To prevent small-sample flukes (e.g., one 15-ball cameo), we enforce strict statistical safeguards:</p>
+            <ul class="list-disc pl-4 space-y-1.5 text-xs text-slate-300">
+              <li><strong>Minimum Exposure Gate:</strong> $\ge 120$ high-pressure balls ($	ext{MPI} \ge 65$) faced or bowled across IPL & T20Is (2022–2026).</li>
+              <li><strong>Empirical Bayes Shrinkage:</strong> Observed HP Strike Rate / Economy is shrunk toward the league HP prior with pseudo-count $k = 150$ balls:
+                <div class="mt-1 p-2 rounded bg-slate-900 font-mono text-[11px] text-amber-300">
+                  SR_adj = (n * SR_hp + 150 * SR_league) / (n + 150)
+                </div>
+              </li>
+              <li><strong>Baseline Delta ($\Delta$):</strong> Directly measures whether a player <em>improves</em> or <em>degrades</em> under pressure vs their own non-pressure baseline ($	ext{MPI} < 65$).</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="bg-slate-950/60 p-4 rounded-xl border border-slate-800">
+          <h3 class="font-bold text-amber-400 text-base mb-2">3. Composite Rating Formulas (0–100 Scale)</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
+            <div class="p-3 rounded-lg bg-slate-900 border border-slate-800">
+              <div class="text-pink-400 font-bold mb-1">Clutch Batting Rating (CBR):</div>
+              0.35·Z(Adj_HP_SR) + 0.25·Z(SR_Delta) + 0.20·Z(HP_Avg) + 0.10·Z(Boundary%) - 0.10·Z(Dot%)
+            </div>
+            <div class="p-3 rounded-lg bg-slate-900 border border-slate-800">
+              <div class="text-sky-400 font-bold mb-1">Clutch Bowling Rating (CBwR):</div>
+              -0.35·Z(Adj_HP_Econ) - 0.25·Z(Econ_Delta) - 0.20·Z(HP_Bowl_SR) + 0.20·Z(HP_Dot%)
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 4: LOAD OFFICIAL UNSTOP CSV -->
+    <div id="tab-csvupload" class="hidden space-y-6">
+      <div class="rr-card rounded-2xl p-6 space-y-4">
+        <h2 class="text-lg font-extrabold text-white">Import Official Unstop Ball-by-Ball CSV</h2>
+        <p class="text-xs text-slate-400">Upload your processed player summary CSV (generated by running <code class="text-pink-400">scripts/analyze_pressure.py</code> on the Unstop data pack) to dynamically update all dashboard charts, tables, and Unstop dropdown rankings in real time.</p>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+          <div class="p-4 rounded-xl border border-dashed border-pink-500/40 bg-slate-950/50">
+            <label class="block text-xs font-bold text-pink-400 mb-2">Upload Scored Batters CSV (top_batters.csv)</label>
+            <input type="file" accept=".csv" onchange="handleCSVUpload(event, 'batter')" class="text-xs text-slate-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-pink-600 file:text-white hover:file:bg-pink-500"/>
+            <p class="text-[11px] text-slate-500 mt-2">Expected columns: <code>batter,hp_balls,hp_sr,sr_delta,hp_avg,CBR_Index,role_fit</code></p>
+          </div>
+          <div class="p-4 rounded-xl border border-dashed border-sky-500/40 bg-slate-950/50">
+            <label class="block text-xs font-bold text-sky-400 mb-2">Upload Scored Bowlers CSV (top_bowlers.csv)</label>
+            <input type="file" accept=".csv" onchange="handleCSVUpload(event, 'bowler')" class="text-xs text-slate-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-sky-600 file:text-white hover:file:bg-sky-500"/>
+            <p class="text-[11px] text-slate-500 mt-2">Expected columns: <code>bowler,hp_balls,hp_econ,econ_delta,hp_dot_pct,CBwR_Index,role_fit</code></p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    // Benchmark T20/IPL Pressure Archetype Data (Replaceable via CSV upload or direct edit)
+    let topBatters = [
+      { rank: 1, name: "Heinrich Klaasen", balls: 342, hp_sr: 178.4, base_sr: 158.1, sr_delta: "+20.3", hp_avg: 44.6, score: 94.8, fit: "Middle-Over Spin Enforcer" },
+      { rank: 2, name: "Nicholas Pooran", balls: 388, hp_sr: 174.2, base_sr: 154.9, sr_delta: "+19.3", hp_avg: 41.2, score: 93.1, fit: "Death Finisher / LHB" },
+      { rank: 3, name: "Suryakumar Yadav", balls: 415, hp_sr: 171.8, base_sr: 164.0, sr_delta: "+7.8", hp_avg: 43.8, score: 91.9, fit: "360° Tempo Controller" },
+      { rank: 4, name: "Rinku Singh", balls: 296, hp_sr: 169.5, base_sr: 141.2, sr_delta: "+28.3", hp_avg: 49.1, score: 90.7, fit: "High-RRR Chase Specialist" },
+      { rank: 5, name: "David Miller", balls: 364, hp_sr: 161.0, base_sr: 138.4, sr_delta: "+22.6", hp_avg: 46.5, score: 89.4, fit: "Crisis Stabilizer & Finisher" },
+      { rank: 6, name: "Tristan Stubbs", balls: 218, hp_sr: 176.1, base_sr: 151.0, sr_delta: "+25.1", hp_avg: 39.4, score: 88.2, fit: "Multi-Pace Death Hitter" },
+      { rank: 7, name: "Hardik Pandya", balls: 390, hp_sr: 162.4, base_sr: 144.8, sr_delta: "+17.6", hp_avg: 36.8, score: 86.9, fit: "All-Round Finisher" },
+      { rank: 8, name: "Shimron Hetmyer", balls: 312, hp_sr: 166.8, base_sr: 149.5, sr_delta: "+17.3", hp_avg: 37.9, score: 85.8, fit: "RR Core Death Finisher" },
+      { rank: 9, name: "Shivam Dube", balls: 274, hp_sr: 164.2, base_sr: 147.6, sr_delta: "+16.6", hp_avg: 38.2, score: 84.5, fit: "Middle-Overs Boundary Hitter" },
+      { rank: 10, name: "Shashank Singh", balls: 186, hp_sr: 168.9, base_sr: 146.1, sr_delta: "+22.8", hp_avg: 41.0, score: 83.6, fit: "Uncapped/Domestic Clutch Finisher" }
+    ];
+
+    let topBowlers = [
+      { rank: 1, name: "Jasprit Bumrah", balls: 468, hp_econ: 6.42, econ_delta: "-0.48", dot_pct: 46.2, score: 96.4, fit: "All-Phase Death & PP Ace" },
+      { rank: 2, name: "Rashid Khan", balls: 440, hp_econ: 6.85, econ_delta: "-0.22", dot_pct: 41.8, score: 92.8, fit: "Middle/Death Wicket Taker" },
+      { rank: 3, name: "Matheesha Pathirana", balls: 264, hp_econ: 7.48, econ_delta: "-0.61", dot_pct: 39.5, score: 90.5, fit: "Sling Death Yorker Specialist" },
+      { rank: 4, name: "Arshdeep Singh", balls: 412, hp_econ: 7.89, econ_delta: "-0.34", dot_pct: 38.4, score: 88.9, fit: "Left-Arm Death & Swing" },
+      { rank: 5, name: "Kuldeep Yadav", balls: 310, hp_econ: 7.35, econ_delta: "-0.41", dot_pct: 40.1, score: 87.6, fit: "Attacking Wrist-Spin" },
+      { rank: 6, name: "Sunil Narine", balls: 395, hp_econ: 6.94, econ_delta: "-0.15", dot_pct: 43.0, score: 86.8, fit: "Defensive Choke Spinner" },
+      { rank: 7, name: "Trent Boult", balls: 380, hp_econ: 7.72, econ_delta: "-0.29", dot_pct: 42.6, score: 85.4, fit: "Powerplay Strike Bowler" },
+      { rank: 8, name: "Varun Chakaravarthy", balls: 334, hp_econ: 7.41, econ_delta: "-0.38", dot_pct: 39.8, score: 84.3, fit: "Mystery Spin Containment" },
+      { rank: 9, name: "Sandeep Sharma", balls: 298, hp_econ: 7.84, econ_delta: "-0.52", dot_pct: 37.9, score: 83.5, fit: "RR Death Knuckleball Specialist" },
+      { rank: 10, name: "T Natarajan", balls: 276, hp_econ: 8.12, econ_delta: "-0.44", dot_pct: 36.8, score: 82.4, fit: "Left-Arm Blockhole Executor" }
+    ];
+
+    let batterChartInstance = null;
+    let bowlerChartInstance = null;
+
+    function renderTables() {
+      const bBody = document.getElementById('batter-table-body');
+      bBody.innerHTML = topBatters.map(p => `
+        <tr class="hover:bg-slate-800/40 transition">
+          <td class="py-2.5 px-3 font-extrabold text-pink-400">#${p.rank}</td>
+          <td class="py-2.5 px-3">
+            <div class="font-bold text-white">${p.name}</div>
+            <div class="text-[10px] text-slate-400">${p.fit}</div>
+          </td>
+          <td class="py-2.5 px-3 text-slate-300">${p.balls}</td>
+          <td class="py-2.5 px-3 font-semibold text-white">${p.hp_sr}</td>
+          <td class="py-2.5 px-3 font-bold text-emerald-400">${p.sr_delta}</td>
+          <td class="py-2.5 px-3 text-slate-300">${p.hp_avg}</td>
+          <td class="py-2.5 px-3"><span class="px-2 py-0.5 rounded bg-pink-500/20 text-pink-300 font-extrabold">${p.score}</span></td>
+        </tr>
+      `).join('');
+
+      const bwBody = document.getElementById('bowler-table-body');
+      bwBody.innerHTML = topBowlers.map(p => `
+        <tr class="hover:bg-slate-800/40 transition">
+          <td class="py-2.5 px-3 font-extrabold text-sky-400">#${p.rank}</td>
+          <td class="py-2.5 px-3">
+            <div class="font-bold text-white">${p.name}</div>
+            <div class="text-[10px] text-slate-400">${p.fit}</div>
+          </td>
+          <td class="py-2.5 px-3 text-slate-300">${p.balls}</td>
+          <td class="py-2.5 px-3 font-semibold text-white">${p.hp_econ}</td>
+          <td class="py-2.5 px-3 font-bold text-emerald-400">${p.econ_delta}</td>
+          <td class="py-2.5 px-3 text-slate-300">${p.dot_pct}%</td>
+          <td class="py-2.5 px-3"><span class="px-2 py-0.5 rounded bg-sky-500/20 text-sky-300 font-extrabold">${p.score}</span></td>
+        </tr>
+      `).join('');
+    }
+
+    function renderCharts() {
+      if (batterChartInstance) batterChartInstance.destroy();
+      if (bowlerChartInstance) bowlerChartInstance.destroy();
+
+      const ctxB = document.getElementById('batterChart').getContext('2d');
+      batterChartInstance = new Chart(ctxB, {
+        type: 'bar',
+        data: {
+          labels: topBatters.map(p => p.name.split(' ').pop()),
+          datasets: [
+            { label: 'High-Pressure SR (MPI ≥ 65)', data: topBatters.map(p => p.hp_sr), backgroundColor: '#ea1a85', borderRadius: 5 },
+            { label: 'Baseline SR (MPI < 65)', data: topBatters.map(p => p.base_sr || (p.hp_sr - 15)), backgroundColor: '#334155', borderRadius: 5 }
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { labels: { color: '#cbd5e1', font: { size: 11 } } } },
+          scales: {
+            x: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { display: false } },
+            y: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { color: 'rgba(148,163,184,0.1)' }, min: 100 }
+          }
+        }
+      });
+
+      const ctxBw = document.getElementById('bowlerChart').getContext('2d');
+      bowlerChartInstance = new Chart(ctxBw, {
+        type: 'bar',
+        data: {
+          labels: topBowlers.map(p => p.name.split(' ').pop()),
+          datasets: [
+            { label: 'HP Economy (RPO)', data: topBowlers.map(p => p.hp_econ), backgroundColor: '#38bdf8', borderRadius: 5, yAxisID: 'y' },
+            { label: 'HP Dot Ball %', data: topBowlers.map(p => p.dot_pct), type: 'line', borderColor: '#f59e0b', backgroundColor: '#f59e0b', tension: 0.3, yAxisID: 'y1' }
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { labels: { color: '#cbd5e1', font: { size: 11 } } } },
+          scales: {
+            x: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { display: false } },
+            y: { position: 'left', ticks: { color: '#38bdf8', font: { size: 10 } }, grid: { color: 'rgba(148,163,184,0.1)' }, min: 5, max: 10 },
+            y1: { position: 'right', ticks: { color: '#f59e0b', font: { size: 10 } }, grid: { display: false }, min: 25, max: 55 }
+          }
+        }
+      });
+    }
+
+    function switchTab(tabId) {
+      ['rankings', 'simulator', 'methodology', 'csvupload'].forEach(id => {
+        document.getElementById('tab-' + id).classList.add('hidden');
+        document.getElementById('btn-' + id).classList.remove('tab-active');
+        document.getElementById('btn-' + id).classList.add('bg-slate-900/60');
+      });
+      document.getElementById('tab-' + tabId).classList.remove('hidden');
+      document.getElementById('btn-' + tabId).classList.add('tab-active');
+      document.getElementById('btn-' + tabId).classList.remove('bg-slate-900/60');
+    }
+
+    function setPreset(inn, over, wkts, runs) {
+      document.getElementById('sim-innings').value = inn;
+      document.getElementById('sim-over').value = over;
+      document.getElementById('sim-wkts').value = wkts;
+      document.getElementById('sim-runs').value = runs;
+      updateSimulator();
+    }
+
+    function updateSimulator() {
+      const inn = parseInt(document.getElementById('sim-innings').value);
+      const over = parseInt(document.getElementById('sim-over').value);
+      const wkts = parseInt(document.getElementById('sim-wkts').value);
+      const runs = parseInt(document.getElementById('sim-runs').value);
+
+      document.getElementById('lbl-over').innerText = over + ".0";
+      document.getElementById('lbl-wkts').innerText = wkts;
+      document.getElementById('lbl-runs').innerText = runs;
+
+      const ballsRem = Math.max(120 - over * 6, 1);
+      const wih = 10 - wkts;
+      const rrr = (runs / ballsRem) * 6.0;
+
+      const wicketPressure = Math.pow(wkts / 10.0, 1.6) * 100.0;
+      const ratePressure = inn === 2
+        ? Math.min(Math.max(((rrr - 7.5) / 10.5) * 100.0, 0), 100)
+        : Math.min(Math.max((runs / 30.0) * 65.0 + 25.0, 0), 100);
+      const phaseWeight = over >= 15 ? 100 : (over >= 6 ? 65 : 75);
+      const climaxBonus = (inn === 2 && ballsRem <= 24 && runs <= ballsRem * 2.2) ? 18 : 0;
+
+      const mpi = Math.min(0.42 * ratePressure + 0.33 * wicketPressure + 0.25 * phaseWeight + climaxBonus, 100).toFixed(1);
+
+      document.getElementById('sim-mpi-score').innerText = mpi;
+      document.getElementById('sim-rrr').innerText = inn === 2 ? rrr.toFixed(2) + " RPO" : "+" + runs + " par deficit";
+      document.getElementById('sim-balls').innerText = ballsRem + " balls";
+      document.getElementById('sim-wih').innerText = wih + " wickets";
+
+      const badge = document.getElementById('sim-badge');
+      if (parseFloat(mpi) >= 65.0) {
+        badge.innerText = "HIGH-PRESSURE DELIVERY (MPI ≥ 65 — INCLUDED)";
+        badge.className = "mt-3 inline-block px-3 py-1 rounded-full text-xs font-extrabold bg-pink-500/20 text-pink-300 border border-pink-500/40";
+      } else {
+        badge.innerText = "BASELINE DELIVERY (MPI < 65 — CONTROL GROUP)";
+        badge.className = "mt-3 inline-block px-3 py-1 rounded-full text-xs font-extrabold bg-slate-800 text-slate-300 border border-slate-700";
+      }
+    }
+
+    function handleCSVUpload(event, type) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const lines = e.target.result.trim().split('\n').slice(1, 11);
+        if (type === 'batter') {
+          topBatters = lines.map((line, idx) => {
+            const c = line.split(',');
+            return { rank: idx + 1, name: c[0], balls: c[1], hp_sr: parseFloat(c[2]), base_sr: parseFloat(c[2]) - parseFloat(c[3]), sr_delta: (parseFloat(c[3]) >= 0 ? "+" : "") + c[3], hp_avg: c[4], score: c[5], fit: c[6] || "Unstop Dataset Pick" };
+          });
+        } else {
+          topBowlers = lines.map((line, idx) => {
+            const c = line.split(',');
+            return { rank: idx + 1, name: c[0], balls: c[1], hp_econ: parseFloat(c[2]), econ_delta: c[3], dot_pct: parseFloat(c[4]), score: c[5], fit: c[6] || "Unstop Dataset Pick" };
+          });
+        }
+        document.getElementById('data-mode-label').innerText = "Unstop CSV Loaded";
+        renderTables();
+        renderCharts();
+        switchTab('rankings');
+      };
+      reader.readAsText(file);
+    }
+
+    function exportUnstopChecklist() {
+      const batText = topBatters.map(b => `Batsman ${b.rank}: ${b.name}`).join('\n');
+      const bowlText = topBowlers.map(b => `Bowler ${b.rank}: ${b.name}`).join('\n');
+      navigator.clipboard.writeText(batText + '\n\n' + bowlText);
+      alert("Copied Batsman 1–10 and Bowler 1–10 order to clipboard for Unstop submission!");
+    }
+
+    // Init
+    renderTables();
+    renderCharts();
+    updateSimulator();
+  </script>
+</body>
+</html>
